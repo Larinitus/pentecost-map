@@ -46,6 +46,12 @@
   </div>
 
   <script>
+    console.log("Loading JSONP from:", script.src);
+
+    window.handlePoints = function(payload) {
+      console.log("handlePoints payload:", payload);
+      // existing code...
+    };
     // 1) Set your church colors here
     const churchColors = {
       "The Foundry": "#e11d48",
@@ -59,49 +65,64 @@
     const tipEl = document.getElementById("tip");
     const baseImg = document.getElementById("base");
 
-    function clearPins() { pinsEl.innerHTML = ""; }
+    let latestPoints = [];
 
-    function showTip(text, x, y) {
-      tipEl.textContent = text;
-      tipEl.style.left = x + "px";
-      tipEl.style.top = y + "px";
-      tipEl.style.display = "block";
+  function showTip(text, x, y) {
+    tipEl.textContent = text;
+    tipEl.style.left = x + "px";
+    tipEl.style.top = y + "px";
+    tipEl.style.display = "block";
+  }
+  function hideTip() { tipEl.style.display = "none"; }
+
+  function clearPins() { pinsEl.innerHTML = ""; }
+
+  function render(points) {
+    clearPins();
+
+    const rect = baseImg.getBoundingClientRect();
+    if (!rect.width || !rect.height) {
+      // Image not laid out yet; try again shortly.
+      setTimeout(() => render(points), 50);
+      return;
     }
-    function hideTip() { tipEl.style.display = "none"; }
 
-    function render(points) {
-      clearPins();
+    const scaleX = rect.width / 800;
+    const scaleY = rect.height / 800;
 
-      // If the image is responsive, we need to scale coordinates from 800x800 to current size.
-      const rect = baseImg.getBoundingClientRect();
-      const scaleX = rect.width / 800;
-      const scaleY = rect.height / 800;
+    points.forEach(p => {
+      const pin = document.createElement("div");
+      pin.className = "pin";
+      pin.style.left = (p.x * scaleX) + "px";
+      pin.style.top  = (p.y * scaleY) + "px";
+      pin.style.background = churchColors[p.church] || "#666";
 
-      points.forEach(p => {
-        const pin = document.createElement("div");
-        pin.className = "pin";
-        pin.style.left = (p.x * scaleX) + "px";
-        pin.style.top  = (p.y * scaleY) + "px";
-        pin.style.background = churchColors[p.church] || "#666";
-
-        pin.addEventListener("mousemove", (ev) => {
-          const pinsRect = pinsEl.getBoundingClientRect();
-          showTip(p.church, ev.clientX - pinsRect.left, ev.clientY - pinsRect.top);
-        });
-        pin.addEventListener("mouseleave", hideTip);
-
-        pinsEl.appendChild(pin);
+      pin.addEventListener("mousemove", (ev) => {
+        const pinsRect = pinsEl.getBoundingClientRect();
+        showTip(p.church, ev.clientX - pinsRect.left, ev.clientY - pinsRect.top);
       });
-    }
+      pin.addEventListener("mouseleave", hideTip);
 
-    // 2) JSONP callback – Apps Script will call this
-    window.handlePoints = function(payload) {
-      if (payload && payload.error) {
-        console.error(payload.error);
-        return;
-      }
-      render(payload || []);
-    };
+      pinsEl.appendChild(pin);
+    });
+  }
+
+  function renderLatest() {
+    render(latestPoints);
+  }
+    
+    // Re-render if the browser resizes (responsive layout changes scaling)
+    window.addEventListener("resize", () => renderLatest());
+
+    
+    // JSONP callback
+  window.handlePoints = function(payload) {
+    console.log("handlePoints payload length:", Array.isArray(payload) ? payload.length : payload);
+    latestPoints = Array.isArray(payload) ? payload : [];
+    // If image is already loaded, render now; otherwise render after load.
+    if (baseImg.complete) renderLatest();
+    else baseImg.addEventListener("load", renderLatest, { once: true });
+  };
 
     // 3) Load the JSONP feed
     // TODO: paste your Apps Script /exec URL here:
@@ -109,7 +130,6 @@
 
     const script = document.createElement("script");
     script.src = APPS_SCRIPT_BASE + "?mode=data&callback=handlePoints&_=" + Date.now();
-    script.async = true;
     document.head.appendChild(script);
 
     // Optional: refresh button behavior could be added later; for now refresh page.
