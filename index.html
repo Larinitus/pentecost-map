@@ -121,20 +121,24 @@
     else baseImg.addEventListener("load", renderLatest, { once: true });
   };
 
+    console.log("Defining callback...");
+    window.handlePoints = function(payload) {
+      console.log("handlePoints payload:", payload);
+      // existing code...
+    };
+    
     // 3) Load the JSONP feed
     // TODO: paste your Apps Script /exec URL here:
     const APPS_SCRIPT_BASE = "https://script.google.com/macros/s/AKfycbwrFB76M-w6pcP_H2C0HGyIQk_ksssC3AasGyPU854tP2DN7CdOe_iWAYOEibfNVVRGZA/exec";
 
     const script = document.createElement("script");
     script.src = APPS_SCRIPT_BASE + "?mode=data&callback=handlePoints&_=" + Date.now();
+    script.onload = () => console.log("JSONP script loaded (onload fired).");
+    script.onerror = (e) => console.error("JSONP script failed to load:", e);
+  
+    console.log("Loading JSONP from:", script.src);
     document.head.appendChild(script);
 
-    console.log("Loading JSONP from:", script.src);
-
-    window.handlePoints = function(payload) {
-      console.log("handlePoints payload:", payload);
-      // existing code...
-    };
 
     // Optional: refresh button behavior could be added later; for now refresh page.
   </script>
