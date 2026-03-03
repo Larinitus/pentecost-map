@@ -1,0 +1,117 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Attendance Map</title>
+  <style>
+    body { margin: 20px; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    #wrap { width: 800px; height: 800px; position: relative; }
+    #base { width: 800px; height: 800px; display: block; user-select: none; -webkit-user-drag: none; }
+    #pins { position: absolute; inset: 0; }
+    .pin {
+      position: absolute;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0.85;
+    }
+    .tooltip {
+      position: absolute;
+      padding: 6px 8px;
+      background: rgba(0,0,0,0.85);
+      color: #fff;
+      border-radius: 6px;
+      font-size: 12px;
+      pointer-events: none;
+      transform: translate(10px, -10px);
+      display: none;
+      white-space: nowrap;
+    }
+    /* make it responsive-ish */
+    @media (max-width: 850px) {
+      #wrap { width: 100%; height: auto; }
+      #base { width: 100%; height: auto; }
+      #pins { position: absolute; inset: 0; }
+    }
+  </style>
+</head>
+<body>
+  <h2>Where attendees are coming from</h2>
+
+  <div id="wrap">
+    <img id="base" src="map.jpg" alt="Map" />
+    <div id="pins"></div>
+    <div id="tip" class="tooltip"></div>
+  </div>
+
+  <script>
+    // 1) Set your church colors here
+    const churchColors = {
+      "Church A": "#e11d48",
+      "Church B": "#2563eb",
+      "Church C": "#16a34a",
+      // ...
+    };
+
+    const pinsEl = document.getElementById("pins");
+    const tipEl = document.getElementById("tip");
+    const baseImg = document.getElementById("base");
+
+    function clearPins() { pinsEl.innerHTML = ""; }
+
+    function showTip(text, x, y) {
+      tipEl.textContent = text;
+      tipEl.style.left = x + "px";
+      tipEl.style.top = y + "px";
+      tipEl.style.display = "block";
+    }
+    function hideTip() { tipEl.style.display = "none"; }
+
+    function render(points) {
+      clearPins();
+
+      // If the image is responsive, we need to scale coordinates from 800x800 to current size.
+      const rect = baseImg.getBoundingClientRect();
+      const scaleX = rect.width / 800;
+      const scaleY = rect.height / 800;
+
+      points.forEach(p => {
+        const pin = document.createElement("div");
+        pin.className = "pin";
+        pin.style.left = (p.x * scaleX) + "px";
+        pin.style.top  = (p.y * scaleY) + "px";
+        pin.style.background = churchColors[p.church] || "#666";
+
+        pin.addEventListener("mousemove", (ev) => {
+          const pinsRect = pinsEl.getBoundingClientRect();
+          showTip(p.church, ev.clientX - pinsRect.left, ev.clientY - pinsRect.top);
+        });
+        pin.addEventListener("mouseleave", hideTip);
+
+        pinsEl.appendChild(pin);
+      });
+    }
+
+    // 2) JSONP callback – Apps Script will call this
+    window.handlePoints = function(payload) {
+      if (payload && payload.error) {
+        console.error(payload.error);
+        return;
+      }
+      render(payload || []);
+    };
+
+    // 3) Load the JSONP feed
+    // TODO: paste your Apps Script /exec URL here:
+    const APPS_SCRIPT_BASE = "PASTE_YOUR_EXEC_URL_HERE"; // e.g. https://script.google.com/macros/s/XXXX/exec
+
+    const script = document.createElement("script");
+    script.src = APPS_SCRIPT_BASE + "?mode=data&callback=handlePoints&_=" + Date.now();
+    script.async = true;
+    document.head.appendChild(script);
+
+    // Optional: refresh button behavior could be added later; for now refresh page.
+  </script>
+</body>
+</html>
