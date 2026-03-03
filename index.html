@@ -48,12 +48,7 @@
   </div>
 
   <script>
-    console.log("Loading JSONP from:", script.src);
 
-    window.handlePoints = function(payload) {
-      console.log("handlePoints payload:", payload);
-      // existing code...
-    };
     // 1) Set your church colors here
     const churchColors = {
       "The Foundry": "#e11d48",
@@ -133,6 +128,13 @@
     const script = document.createElement("script");
     script.src = APPS_SCRIPT_BASE + "?mode=data&callback=handlePoints&_=" + Date.now();
     document.head.appendChild(script);
+
+    console.log("Loading JSONP from:", script.src);
+
+    window.handlePoints = function(payload) {
+      console.log("handlePoints payload:", payload);
+      // existing code...
+    };
 
     // Optional: refresh button behavior could be added later; for now refresh page.
   </script>
