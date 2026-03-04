@@ -30,16 +30,6 @@
       display: none;
       white-space: nowrap;
     }
-    /* make it responsive-ish */
-    @media (max-width: 850px) {
-      #wrap { width: 100%; height: auto; }
-      #base { width: 100%; height: auto; }
-      #pins { position: absolute; inset: 0; }
-      #legend {
-        width: calc(100% - 40px);
-        grid-template-columns: 1fr;
-      }
-    }
 
     #legend {
       width: 800px;
@@ -64,6 +54,16 @@
       flex: 0 0 12px;
       opacity: 0.85;
     }
+    
+    @media (max-width: 850px) {
+      #wrap { width: 100%; height: auto; }
+      #base { width: 100%; height: auto; }
+      #pins { position: absolute; inset: 0; }
+      #legend {
+        width: calc(100% - 40px);
+        grid-template-columns: 1fr;
+      }
+    }
   
   </style>
 </head>
@@ -74,6 +74,7 @@
     <img id="base" src="baltimore-map-800.png" alt="Map" />
     <div id="pins"></div>
     <div id="tip" class="tooltip"></div>
+    <button id="refreshPins" style="margin-top:12px;">Refresh pins</button>
     <div id="loading" style="
       position:absolute; inset:0; z-index:4;
       display:flex; align-items:center; justify-content:center;
@@ -107,6 +108,7 @@
     const baseImg = document.getElementById("base");
     const loadingEl = document.getElementById("loading");
     const legendEl = document.getElementById("legend");
+    document.getElementById("refreshPins").addEventListener("click", loadPoints);
 
     function renderLegend() {
       if (!legendEl) return;
@@ -184,23 +186,18 @@
     function loadPoints() {
       setLoading(true);
     
-      fetch(POINTS_URL)
+      const url = POINTS_URL + (POINTS_URL.includes("?") ? "&" : "?") + "_=" + Date.now();
+    
+      fetch(url, { cache: "no-store" })
         .then(r => r.text())
         .then(csv => {
-    
           const rows = csv.trim().split("\n");
-          rows.shift(); // remove header row
+          rows.shift(); // header
     
           const points = rows
             .map(row => row.split(","))
-            .filter(([church, x, y]) => church && !isNaN(x) && !isNaN(y))
-            .map(([church, x, y]) => ({
-              church,
-              x: Number(x),
-              y: Number(y)
-            }));
-    
-          console.log("Points loaded:", points);
+            .filter(([church, x, y]) => church && x && y && !isNaN(x) && !isNaN(y))
+            .map(([church, x, y]) => ({ church, x: Number(x), y: Number(y) }));
     
           latestPoints = points;
     
