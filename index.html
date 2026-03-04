@@ -9,8 +9,7 @@
     #wrap { width: 800px; height: 800px; position: relative; margin: auto; }
     #base { width: 800px; height: 800px; display: block; position: relative; z-index: 1; user-select: none; -webkit-user-drag: none; }
     #pins { position: absolute; inset: 0; z-index: 2; }
-    
-.tooltip { z-index: 3; }
+
     .pin {
       position: absolute;
       width: 10px; height: 10px;
@@ -20,6 +19,7 @@
     }
     .tooltip {
       position: absolute;
+      z-index: 3;
       padding: 6px 8px;
       background: rgba(0,0,0,0.85);
       color: #fff;
@@ -64,83 +64,71 @@
 
     let latestPoints = [];
 
-  function showTip(text, x, y) {
-    tipEl.textContent = text;
-    tipEl.style.left = x + "px";
-    tipEl.style.top = y + "px";
-    tipEl.style.display = "block";
-  }
-  function hideTip() { tipEl.style.display = "none"; }
-
-  function clearPins() { pinsEl.innerHTML = ""; }
-
-  function render(points) {
-    clearPins();
-
-    const rect = baseImg.getBoundingClientRect();
-    if (!rect.width || !rect.height) {
-      // Image not laid out yet; try again shortly.
-      setTimeout(() => render(points), 50);
-      return;
+    function showTip(text, x, y) {
+      tipEl.textContent = text;
+      tipEl.style.left = x + "px";
+      tipEl.style.top = y + "px";
+      tipEl.style.display = "block";
     }
-
-    const scaleX = rect.width / 800;
-    const scaleY = rect.height / 800;
-
-    points.forEach(p => {
-      const pin = document.createElement("div");
-      pin.className = "pin";
-      pin.style.left = (p.x * scaleX) + "px";
-      pin.style.top  = (p.y * scaleY) + "px";
-      pin.style.background = churchColors[p.church] || "#666";
-
-      pin.addEventListener("mousemove", (ev) => {
-        const pinsRect = pinsEl.getBoundingClientRect();
-        showTip(p.church, ev.clientX - pinsRect.left, ev.clientY - pinsRect.top);
-      });
-      pin.addEventListener("mouseleave", hideTip);
-
-      pinsEl.appendChild(pin);
-    });
-  }
-
-  function renderLatest() {
-    render(latestPoints);
-  }
-    
-    // Re-render if the browser resizes (responsive layout changes scaling)
-    window.addEventListener("resize", () => renderLatest());
-
-    
-    // JSONP callback
-  window.handlePoints = function(payload) {
-    console.log("handlePoints payload length:", Array.isArray(payload) ? payload.length : payload);
-    latestPoints = Array.isArray(payload) ? payload : [];
-    // If image is already loaded, render now; otherwise render after load.
-    if (baseImg.complete) renderLatest();
-    else baseImg.addEventListener("load", renderLatest, { once: true });
-  };
-
-    console.log("Defining callback...");
-    window.handlePoints = function(payload) {
-      console.log("handlePoints payload:", payload);
-      // existing code...
-    };
-    
-    // 3) Load the JSONP feed
-    // TODO: paste your Apps Script /exec URL here:
-    const APPS_SCRIPT_BASE = "https://script.google.com/macros/s/AKfycbwrFB76M-w6pcP_H2C0HGyIQk_ksssC3AasGyPU854tP2DN7CdOe_iWAYOEibfNVVRGZA/exec";
-
-    const script = document.createElement("script");
-    script.src = APPS_SCRIPT_BASE + "?mode=data&callback=handlePoints&_=" + Date.now();
-    script.onload = () => console.log("JSONP script loaded (onload fired).");
-    script.onerror = (e) => console.error("JSONP script failed to load:", e);
+    function hideTip() { tipEl.style.display = "none"; }
   
-    console.log("Loading JSONP from:", script.src);
-    document.head.appendChild(script);
+    function clearPins() { pinsEl.innerHTML = ""; }
+  
+    function render(points) {
+      clearPins();
+  
+      const rect = baseImg.getBoundingClientRect();
+      if (!rect.width || !rect.height) {
+        // Image not laid out yet; try again shortly.
+        setTimeout(() => render(points), 50);
+        return;
+      }
+  
+      const scaleX = rect.width / 800;
+      const scaleY = rect.height / 800;
+  
+      points.forEach(p => {
+        const pin = document.createElement("div");
+        pin.className = "pin";
+        pin.style.left = (p.x * scaleX) + "px";
+        pin.style.top  = (p.y * scaleY) + "px";
+        pin.style.background = churchColors[p.church] || "#666";
+  
+        pin.addEventListener("mousemove", (ev) => {
+          const pinsRect = pinsEl.getBoundingClientRect();
+          showTip(p.church, ev.clientX - pinsRect.left, ev.clientY - pinsRect.top);
+        });
+        pin.addEventListener("mouseleave", hideTip);
+  
+        pinsEl.appendChild(pin);
+      });
+    }
+  
+    function renderLatest() {
+      render(latestPoints);
+    }
+      
+    window.addEventListener("resize", () => renderLatest());
+  
+    // Load points via Cloudflare Worker
+    const POINTS_URL = "https://baltimore-map-test.larry-lin.workers.dev/";
+    
+    function loadPoints() {
+      fetch(POINTS_URL, { cache: "no-store" })
+        .then(r => r.json())
+        .then(payload => {
+          console.log("Points loaded:", payload);
+          latestPoints = Array.isArray(payload) ? payload : [];
+          if (baseImg.complete) renderLatest();
+          else baseImg.addEventListener("load", renderLatest, { once: true });
+        })
+        .catch(err => {
+          console.error("Failed to load points:", err);
+        });
+    }
+    
+    loadPoints();
 
-
-    // Optional: refresh button behavior could be added later; for now refresh page.
   </script>
 </body>
 </html>
