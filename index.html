@@ -45,6 +45,14 @@
     <img id="base" src="baltimore-map-test.jpg" alt="Map" />
     <div id="pins"></div>
     <div id="tip" class="tooltip"></div>
+    <div id="loading" style="
+      position:absolute; inset:0; z-index:4;
+      display:flex; align-items:center; justify-content:center;
+      background:rgba(255,255,255,0.6);
+      font-weight:600;
+    ">
+      Loading pins…
+    </div>
   </div>
 
   <script>
@@ -61,6 +69,12 @@
     const pinsEl = document.getElementById("pins");
     const tipEl = document.getElementById("tip");
     const baseImg = document.getElementById("base");
+    const loadingEl = document.getElementById("loading");
+
+    function setLoading(isLoading) {
+      if (!loadingEl) return;
+      loadingEl.style.display = isLoading ? "flex" : "none";
+    }
 
     let latestPoints = [];
 
@@ -114,7 +128,7 @@
     const POINTS_URL = "https://baltimore-map-test.larry-lin.workers.dev/";
     
     function loadPoints() {
-      fetch(POINTS_URL, { cache: "no-store" })
+      fetch(POINTS_URL, { cache: "reload" })
         .then(r => r.json())
         .then(payload => {
           console.log("Points loaded:", payload);
