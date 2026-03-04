@@ -137,14 +137,14 @@
           const rows = csv.trim().split("\n");
           rows.shift(); // remove header row
     
-          const points = rows.map(row => {
-            const [church, x, y] = row.split(",");
-            return {
-              church: church,
+          const points = rows
+            .map(row => row.split(","))
+            .filter(([church, x, y]) => church && !isNaN(x) && !isNaN(y))
+            .map(([church, x, y]) => ({
+              church,
               x: Number(x),
               y: Number(y)
-            };
-          });
+            }));
     
           console.log("Points loaded:", points);
     
