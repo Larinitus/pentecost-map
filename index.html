@@ -35,7 +35,36 @@
       #wrap { width: 100%; height: auto; }
       #base { width: 100%; height: auto; }
       #pins { position: absolute; inset: 0; }
+      #legend {
+        width: calc(100% - 40px);
+        grid-template-columns: 1fr;
+      }
     }
+
+    #legend {
+      width: 800px;
+      margin: 14px auto 0;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 18px;
+      text-align: left;
+      font-size: 14px;
+    }
+    
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .legend-swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex: 0 0 12px;
+      border: 1px solid rgba(0,0,0,0.15);
+    }
+  
   </style>
 </head>
 <body>
@@ -54,22 +83,47 @@
       Loading pins…
     </div>
   </div>
+  <div id="legend" aria-label="Church legend"></div>
 
   <script>
 
     // 1) Set your church colors here
     const churchColors = {
-      "The Foundry": "#e11d48",
-      "Gallery Church": "#2563eb",
-      "Grace Life Church": "#16a34a",
-      "St Moses Church": "#008080",
-      // ...
+      "City Harbor Church": "#8BE0A4",
+      "The Foundry": "#66C5CC",
+      "Gallery Church": "#F6CF71",
+      "Grace Beyond the Walls": "#C9DB74",
+      "Grace Life Church": "#F89C74",
+      "Hopeville": "#9EB9F3",
+      "Horizon Church": "#B497E7",
+      "New Harvest Ministries": "#D3B484",
+      "Sowebo Community Church": "#FE88B1",
+      "St Moses Church": "#DCB0F2",
+      "Victory House Worship Center": "#87C55F"
     };
 
     const pinsEl = document.getElementById("pins");
     const tipEl = document.getElementById("tip");
     const baseImg = document.getElementById("base");
     const loadingEl = document.getElementById("loading");
+    const legendEl = document.getElementById("legend");
+
+    function renderLegend() {
+      if (!legendEl) return;
+    
+      // Sort alphabetically; remove this if you prefer a custom order
+      const entries = Object.entries(churchColors)
+        .sort(([a], [b]) => a.localeCompare(b));
+    
+      legendEl.innerHTML = entries.map(([name, color]) => `
+        <div class="legend-item">
+          <span class="legend-swatch" style="background:${color}"></span>
+          <span>${name}</span>
+        </div>
+      `).join("");
+    }
+
+    renderLegend();
 
     function setLoading(isLoading) {
       if (!loadingEl) return;
