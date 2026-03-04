@@ -125,19 +125,39 @@
     window.addEventListener("resize", () => renderLatest());
   
     // Load points via Cloudflare Worker
-    const POINTS_URL = "https://baltimore-map-test.larry-lin.workers.dev/";
+    const POINTS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR8vB-6T8KKEibKoEJuLbibJCxuIFBZXdZO63zSrCqT_0-aXJK06uvLhl7IlRHW39La6Tg7IVQBFVus/pub?gid=596352563&single=true&output=csv";
     
     function loadPoints() {
-      fetch(POINTS_URL, { cache: "reload" })
-        .then(r => r.json())
-        .then(payload => {
-          console.log("Points loaded:", payload);
-          latestPoints = Array.isArray(payload) ? payload : [];
+      setLoading(true);
+    
+      fetch(POINTS_URL)
+        .then(r => r.text())
+        .then(csv => {
+    
+          const rows = csv.trim().split("\n");
+          rows.shift(); // remove header row
+    
+          const points = rows.map(row => {
+            const [church, x, y] = row.split(",");
+            return {
+              church: church,
+              x: Number(x),
+              y: Number(y)
+            };
+          });
+    
+          console.log("Points loaded:", points);
+    
+          latestPoints = points;
+    
           if (baseImg.complete) renderLatest();
           else baseImg.addEventListener("load", renderLatest, { once: true });
+    
+          setLoading(false);
         })
         .catch(err => {
           console.error("Failed to load points:", err);
+          setLoading(false);
         });
     }
     
