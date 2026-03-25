@@ -175,8 +175,8 @@
 
     let latestPoints = [];
 
-    function showTip(text, x, y) {
-      tipEl.textContent = text;
+    function showTip(church, region, x, y) {
+      tipEl.textContent = church + "\n" + region;
       tipEl.style.left = x + "px";
       tipEl.style.top = y + "px";
       tipEl.style.display = "block";
@@ -207,7 +207,7 @@
   
         pin.addEventListener("mousemove", (ev) => {
           const pinsRect = pinsEl.getBoundingClientRect();
-          showTip(p.church, ev.clientX - pinsRect.left, ev.clientY - pinsRect.top);
+          showTip(p.church, p.region, ev.clientX - pinsRect.left, ev.clientY - pinsRect.top);
         });
         pin.addEventListener("mouseleave", hideTip);
   
@@ -237,8 +237,8 @@
     
           const points = rows
             .map(row => row.split(","))
-            .filter(([church, x, y]) => church && x && y && !isNaN(x) && !isNaN(y))
-            .map(([church, x, y]) => ({ church, x: Number(x), y: Number(y) }));
+            .filter(([church, region, x, y]) => church && region && x && y && !isNaN(x) && !isNaN(y))
+            .map(([church, region, x, y]) => ({ church, region, x: Number(x), y: Number(y) }));
     
           latestPoints = points;
     
