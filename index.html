@@ -176,7 +176,7 @@
     let latestPoints = [];
 
     function showTip(church, region, x, y) {
-      tipEl.textContent = church + "\n" + region;
+      tipEl.innerHTML = church + "<br>" + region;
       tipEl.style.left = x + "px";
       tipEl.style.top = y + "px";
       tipEl.style.display = "block";
