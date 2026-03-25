@@ -1,0 +1,260 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Attendees Map</title>
+  <style>
+    body { margin: 20px; text-align: center; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    /* Layout and sidebar styling*/
+    #layout {
+      display: grid;
+      gap: 24px;
+      justify-content: center;
+      align-items: start;
+      grid-template-columns: 1fr;
+    }
+    #sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      align-items: center;
+      max-width: 800px;
+    }
+    #legend {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 18px;
+      text-align: left;
+      font-size: 14px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .legend-swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex: 0 0 10px;
+      opacity: 0.85;
+    }
+    
+    #wrap { width: 800px; height: 800px; position: relative; margin: auto; }
+    #base { width: 800px; height: 800px; display: block; position: relative; z-index: 1; user-select: none; -webkit-user-drag: none; }
+    #pins { position: absolute; inset: 0; z-index: 2; }
+    #loading { position: absolute; inset: 0; z-index: 4; display: flex; align-items: center; justify-content: center;
+      background:rgba(255,255,255,0.6); font-weight:600; }
+    .pin {
+      position: absolute;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0.85;
+    }
+    .tooltip {
+      position: absolute;
+      z-index: 3;
+      padding: 6px 8px;
+      background: rgba(0,0,0,0.85);
+      color: #fff;
+      border-radius: 6px;
+      font-size: 12px;
+      pointer-events: none;
+      transform: translate(10px, -10px);
+      display: none;
+      white-space: nowrap;
+    }
+    
+    #refreshPins {
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #ffffff;
+      background-color: #8a1d19;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      width: auto;
+      align-self: center; 
+      transition: background-color 0.2s ease, transform 0.05s ease, box-shadow 0.2s ease;
+    }
+    #refreshPins:hover {
+      background-color: #a3211c;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+    #refreshPins:active {
+      transform: translateY(1px);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    #refreshPins:focus-visible {
+      outline: 2px solid #ffffff;
+      outline-offset: 2px;
+    }
+    /* Desktop: map left, sidebar right */
+    @media (min-width: 1100px) {
+      #layout { grid-template-columns: auto 260px; }
+      #legend { grid-template-columns: 1fr; }
+      #sidebar { width: 260px; align-items: flex-start; }
+      #refreshPins { width: 100%; align-self: stretch; }
+    }
+    @media (max-width: 850px) {
+      #wrap { width: 100%; height: auto; }
+      #base { width: 100%; height: auto; }
+      #pins { position: absolute; inset: 0; }
+    }
+    @media (max-width: 480px) {
+      #legend { grid-template-columns: 1fr; }
+    }
+  
+  </style>
+</head>
+<body>
+  <h2>The Church Is the People of God</h2>
+  <div id="layout">
+    <div id="mapSection">
+      <div id="wrap">
+        <img id="base" src="baltimore-map-800.png" alt="Map" />
+        <div id="pins"></div>
+        <div id="tip" class="tooltip"></div>
+        <div id="loading">Loading pins…</div>
+      </div>
+    </div>
+    <aside id="sidebar">
+      <div id="legend" aria-label="Church legend"></div>
+      <button id="refreshPins" type="button">Refresh pins</button>
+    </aside>
+  </div>
+
+  <script>
+
+    // 1) Set your church colors here
+    const churchColors = {
+      "City Harbor Church": "#8BE0A4",
+      "The Foundry": "#66C5CC",
+      "Gallery Church": "#F6CF71",
+      "Grace Beyond the Walls": "#C9DB74",
+      "Grace Life Church": "#F89C74",
+      "Hopeville": "#9EB9F3",
+      "Horizon Church": "#B497E7",
+      "New Harvest Ministries": "#D3B484",
+      "Sowebo Community Church": "#FE88B1",
+      "St Moses Church": "#DCB0F2",
+      "Victory House Worship Center": "#87C55F"
+    };
+
+    const pinsEl = document.getElementById("pins");
+    const tipEl = document.getElementById("tip");
+    const baseImg = document.getElementById("base");
+    const loadingEl = document.getElementById("loading");
+    const legendEl = document.getElementById("legend");
+    document.getElementById("refreshPins").addEventListener("click", loadPoints);
+
+    function renderLegend() {
+      if (!legendEl) return;
+    
+      // Sort alphabetically; remove this if you prefer a custom order
+      const entries = Object.entries(churchColors)
+        .sort(([a], [b]) => a.localeCompare(b));
+    
+      legendEl.innerHTML = entries.map(([name, color]) => `
+        <div class="legend-item">
+          <span class="legend-swatch" style="background:${color}"></span>
+          <span>${name}</span>
+        </div>
+      `).join("");
+    }
+
+    renderLegend();
+
+    function setLoading(isLoading) {
+      if (!loadingEl) return;
+      loadingEl.style.display = isLoading ? "flex" : "none";
+    }
+
+    let latestPoints = [];
+
+    function showTip(church, x, y) {
+      tipEl.textContent = church;
+      tipEl.style.left = x + "px";
+      tipEl.style.top = y + "px";
+      tipEl.style.display = "block";
+    }
+    function hideTip() { tipEl.style.display = "none"; }
+  
+    function clearPins() { pinsEl.innerHTML = ""; }
+  
+    function render(points) {
+      clearPins();
+  
+      const rect = baseImg.getBoundingClientRect();
+      if (!rect.width || !rect.height) {
+        // Image not laid out yet; try again shortly.
+        setTimeout(() => render(points), 50);
+        return;
+      }
+  
+      const scaleX = rect.width / 800;
+      const scaleY = rect.height / 800;
+  
+      points.forEach(p => {
+        const pin = document.createElement("div");
+        pin.className = "pin";
+        pin.style.left = (p.x * scaleX) + "px";
+        pin.style.top  = (p.y * scaleY) + "px";
+        pin.style.background = churchColors[p.church] || "#666";
+  
+        pin.addEventListener("mousemove", (ev) => {
+          const pinsRect = pinsEl.getBoundingClientRect();
+          showTip(p.church, ev.clientX - pinsRect.left, ev.clientY - pinsRect.top);
+        });
+        pin.addEventListener("mouseleave", hideTip);
+  
+        pinsEl.appendChild(pin);
+      });
+    }
+  
+    function renderLatest() {
+      render(latestPoints);
+    }
+      
+    window.addEventListener("resize", () => renderLatest());
+  
+    // Load points via Cloudflare Worker
+    const POINTS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR8vB-6T8KKEibKoEJuLbibJCxuIFBZXdZO63zSrCqT_0-aXJK06uvLhl7IlRHW39La6Tg7IVQBFVus/pub?gid=596352563&single=true&output=csv";
+    
+    function loadPoints() {
+      setLoading(true);
+    
+      const url = POINTS_URL + (POINTS_URL.includes("?") ? "&" : "?") + "_=" + Date.now();
+    
+      fetch(url, { cache: "no-store" })
+        .then(r => r.text())
+        .then(csv => {
+          const rows = csv.trim().split("\n");
+          rows.shift(); // header
+    
+          const points = rows
+            .map(row => row.split(","))
+            .filter(([church, region, x, y]) => church && region && x && y && !isNaN(x) && !isNaN(y))
+            .map(([church, region, x, y]) => ({ church, region, x: Number(x), y: Number(y) }));
+    
+          latestPoints = points;
+    
+          if (baseImg.complete) renderLatest();
+          else baseImg.addEventListener("load", renderLatest, { once: true });
+    
+          setLoading(false);
+        })
+        .catch(err => {
+          console.error("Failed to load points:", err);
+          setLoading(false);
+        });
+    }
+    
+    loadPoints();
+
+  </script>
+</body>
+</html>
