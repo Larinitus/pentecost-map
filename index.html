@@ -5,29 +5,120 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Attendees Map</title>
   <style>
-    body { margin: 20px; text-align: center; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
-    /* Layout and sidebar styling*/
+    
+    body { 
+      margin: 0; 
+      padding: 20px;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; 
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
     #layout {
       display: grid;
       gap: 24px;
       justify-content: center;
-      align-items: start;
       grid-template-columns: 1fr;
+      width: 800px; height: 800px; position: relative; margin: auto; 
     }
-    #sidebar {
+    #base { width: 800px; height: 800px; display: block; position: relative; z-index: 1; user-select: none; -webkit-user-drag: none; }
+    #dots { position: absolute; inset: 0; z-index: 2; }
+    #loading { position: absolute; inset: 0; z-index: 4; display: flex; align-items: center; justify-content: center;
+      background:rgba(255,255,255,0.6); font-weight:600; }
+
+    .dot {
+      position: absolute;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0.85;
+    }
+    
+    #refreshDotsContainer {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      z-index: 5;
+      width: 260px;
+      max-width: 45%;
+      border-radius: 8px;
+    }
+    #refreshDots {
+      width: 100%;
+      padding: 12px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      color: #ffffff;
+      background-color: #8a1d19;
+      box-shadow: 0 10px 14px rgba(0,0,0,0.18);
+      opacity: 0.9;
+      border-radius: 6px;
+      cursor: pointer;
+      align-self: center; 
+      transition: background-color 0.2s ease, transform 0.05s ease;
+    }
+    #refreshDots:hover {
+      background-color: #641c18;
+    }
+    #refreshDots:active {
+      transform: translateY(1px);
+    }
+    #refreshDots:focus-visible {
+      outline: 2px solid #ffffff;
+      outline-offset: 2px;
+    }
+
+    #legendPanel {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      z-index: 5;
+      width: 260px;
+      max-width: 45%;
+      background: rgba(255,255,255,0.95);
+      opacity: 0.8;
+      border-radius: 8px;
+      box-shadow: 0 10px 14px rgba(0,0,0,0.18);
+      overflow: hidden;
+    }
+    #legendToggle {
+      width: 100%;
+      padding: 12px 14px;
+      border: none;
+      background: #ffffff;
+      opacity: 0.8;
+      color: #000000;
+      font-size: 14px;
+      font-weight: 600;
+      text-align: left;
+      cursor: pointer;
       display: flex;
-      flex-direction: column;
-      gap: 14px;
       align-items: center;
-      max-width: 800px;
+      justify-content: space-between;
+    }
+    #legendToggle:hover {
+      background: #e3e3e3;
+    }
+    #legendArrow {
+      font-size: 12px;
+    }
+    #legendContent {
+      padding: 12px 14px 14px;
+      border-top: 1px solid rgba(0,0,0,0.08);
+      max-height: 320px;
+      overflow-y: auto;
     }
     #legend {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px 18px;
+      grid-template-columns: 1fr;
+      gap: 8px;
       text-align: left;
       font-size: 14px;
     }
+
     .legend-item {
       display: flex;
       align-items: center;
@@ -40,96 +131,61 @@
       flex: 0 0 10px;
       opacity: 0.85;
     }
-    
-    #wrap { width: 800px; height: 800px; position: relative; margin: auto; }
-    #base { width: 800px; height: 800px; display: block; position: relative; z-index: 1; user-select: none; -webkit-user-drag: none; }
-    #pins { position: absolute; inset: 0; z-index: 2; }
-    #loading { position: absolute; inset: 0; z-index: 4; display: flex; align-items: center; justify-content: center;
-      background:rgba(255,255,255,0.6); font-weight:600; }
-    .pin {
-      position: absolute;
-      width: 10px; height: 10px;
-      border-radius: 50%;
-      transform: translate(-50%, -50%);
-      opacity: 0.85;
-    }
-    .tooltip {
-      position: absolute;
-      z-index: 3;
-      padding: 6px 8px;
-      background: rgba(0,0,0,0.85);
-      color: #fff;
-      border-radius: 6px;
-      font-size: 12px;
-      pointer-events: none;
-      transform: translate(10px, -10px);
-      display: none;
-      white-space: nowrap;
-    }
-    
-    #refreshPins {
-      padding: 10px 14px;
-      font-size: 14px;
-      font-weight: 600;
-      color: #ffffff;
-      background-color: #8a1d19;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      width: auto;
-      align-self: center; 
-      transition: background-color 0.2s ease, transform 0.05s ease, box-shadow 0.2s ease;
-    }
-    #refreshPins:hover {
-      background-color: #a3211c;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-    }
-    #refreshPins:active {
-      transform: translateY(1px);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-    }
-    #refreshPins:focus-visible {
-      outline: 2px solid #ffffff;
-      outline-offset: 2px;
-    }
-    /* Desktop: map left, sidebar right */
-    @media (min-width: 1100px) {
-      #layout { grid-template-columns: auto 260px; }
-      #legend { grid-template-columns: 1fr; }
-      #sidebar { width: 260px; align-items: flex-start; }
-      #refreshPins { width: 100%; align-self: stretch; }
-    }
+
+
     @media (max-width: 850px) {
       #wrap { width: 100%; height: auto; }
       #base { width: 100%; height: auto; }
-      #pins { position: absolute; inset: 0; }
+      #dots { position: absolute; inset: 0; }
     }
     @media (max-width: 480px) {
-      #legend { grid-template-columns: 1fr; }
+      #refreshDotsContainer {
+        right: 2%;
+        top: 8px;
+        max-width: 47%;
+      }
+      #refreshDots {
+        padding: 8px 10px;
+        font-size: 11px;
+      }
+      #legendPanel {
+        left: 2%;
+        top: 8px;
+        max-width: 47%;
+      }
+      #legendToggle {
+        padding: 8px 10px;
+        font-size: 11px;
+      }
+      #legendContent {
+        max-height: 240px;
+      }
     }
+    
   
   </style>
 </head>
 <body>
-  <h2>The Church Is the People of God</h2>
   <div id="layout">
-    <div id="mapSection">
-      <div id="wrap">
         <img id="base" src="baltimore-map-800-w-regions-grayscale.png" alt="Map" />
-        <div id="pins"></div>
-        <div id="tip" class="tooltip"></div>
-        <div id="loading">Loading pins…</div>
-      </div>
-    </div>
-    <aside id="sidebar">
-      <div id="legend" aria-label="Church legend"></div>
-      <button id="refreshPins" type="button">Refresh Dots</button>
-    </aside>
+        <div id="dots"></div>
+        <div id="loading">Loading dots…</div>
+        <div id="legendPanel">
+          <button id="legendToggle" type="button" aria-expanded="false" aria-controls="legendContent">
+            See Legend <span id="legendArrow">▼</span>
+          </button>
+          <div id="legendContent" hidden>
+            <div id="legend" aria-label="Church legend"></div>
+          </div>
+        </div>
+        <div id="refreshDotsContainer">
+          <button id="refreshDots" type="button">Refresh Dots</button>
+        </div>
   </div>
 
   <script>
 
-    // 1) Set your church colors here
+    // set church colors here
     const churchColors = {
       "City Harbor Church": "#00C2A8",        // teal
       "The Foundry": "#0084FF",              // strong blue
@@ -144,12 +200,23 @@
       "Victory House Worship Center": "#32D74B" // green
     };
 
-    const pinsEl = document.getElementById("pins");
+    const dotsEl = document.getElementById("dots");
     const tipEl = document.getElementById("tip");
     const baseImg = document.getElementById("base");
     const loadingEl = document.getElementById("loading");
     const legendEl = document.getElementById("legend");
-    document.getElementById("refreshPins").addEventListener("click", loadPoints);
+    document.getElementById("refreshDots").addEventListener("click", loadPoints);
+
+    const legendToggle = document.getElementById("legendToggle");
+    const legendContent = document.getElementById("legendContent");
+    const legendArrow = document.getElementById("legendArrow");
+
+    legendToggle.addEventListener("click", () => {
+      const isOpen = !legendContent.hidden;
+      legendContent.hidden = isOpen;
+      legendToggle.setAttribute("aria-expanded", String(!isOpen));
+      legendArrow.textContent = isOpen ? "▼" : "▲";
+    });
 
     function renderLegend() {
       if (!legendEl) return;
@@ -183,10 +250,10 @@
     }
     function hideTip() { tipEl.style.display = "none"; }
   
-    function clearPins() { pinsEl.innerHTML = ""; }
+    function clearDots() { dotsEl.innerHTML = ""; }
   
     function render(points) {
-      clearPins();
+      clearDots();
   
       const rect = baseImg.getBoundingClientRect();
       if (!rect.width || !rect.height) {
@@ -199,19 +266,19 @@
       const scaleY = rect.height / 800;
   
       points.forEach(p => {
-        const pin = document.createElement("div");
-        pin.className = "pin";
-        pin.style.left = (p.x * scaleX) + "px";
-        pin.style.top  = (p.y * scaleY) + "px";
-        pin.style.background = churchColors[p.church] || "#666";
+        const dot = document.createElement("div");
+        dot.className = "dot";
+        dot.style.left = (p.x * scaleX) + "px";
+        dot.style.top  = (p.y * scaleY) + "px";
+        dot.style.background = churchColors[p.church] || "#666";
   
-        pin.addEventListener("mousemove", (ev) => {
-          const pinsRect = pinsEl.getBoundingClientRect();
-          showTip(p.church, p.region, ev.clientX - pinsRect.left, ev.clientY - pinsRect.top);
+        dot.addEventListener("mousemove", (ev) => {
+          const dotsRect = dotsEl.getBoundingClientRect();
+          showTip(p.church, p.region, ev.clientX - dotsRect.left, ev.clientY - dotsRect.top);
         });
-        pin.addEventListener("mouseleave", hideTip);
+        dot.addEventListener("mouseleave", hideTip);
   
-        pinsEl.appendChild(pin);
+        dotsEl.appendChild(dot);
       });
     }
   
