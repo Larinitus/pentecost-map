@@ -35,6 +35,19 @@
       transform: translate(-50%, -50%);
       opacity: 0.85;
     }
+    .tooltip {
+      position: absolute;
+      z-index: 3;
+      padding: 6px 8px;
+      background: rgba(0,0,0,0.85);
+      color: #fff;
+      border-radius: 6px;
+      font-size: 12px;
+      pointer-events: none;
+      transform: translate(10px, -10px);
+      display: none;
+      white-space: nowrap;
+    }
     
     #refreshDotsContainer {
       position: absolute;
@@ -123,6 +136,22 @@
       display: flex;
       align-items: center;
       gap: 10px;
+      padding: 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+      border: none;
+      background: transparent;
+      width: 100%;
+      text-align: left;
+      font-size: inherit;
+    }
+    .legend-item:hover {
+      background-color: rgba(0,0,0,0.05);
+    }
+    .legend-item.active {
+      background-color: rgba(0,0,0,0.1);
+      font-weight: 600;
     }
     .legend-swatch {
       width: 10px;
@@ -169,10 +198,11 @@
   <div id="layout">
         <img id="base" src="baltimore-map-800-w-regions-grayscale.png" alt="Map" />
         <div id="dots"></div>
+        <div id="tip" class="tooltip"></div>
         <div id="loading">Loading dots…</div>
         <div id="legendPanel">
           <button id="legendToggle" type="button" aria-expanded="false" aria-controls="legendContent">
-            See Legend <span id="legendArrow">▼</span>
+            Filter <span id="legendArrow">▼</span>
           </button>
           <div id="legendContent" hidden>
             <div id="legend" aria-label="Church legend"></div>
@@ -225,12 +255,28 @@
       const entries = Object.entries(churchColors)
         .sort(([a], [b]) => a.localeCompare(b));
     
-      legendEl.innerHTML = entries.map(([name, color]) => `
-        <div class="legend-item">
+      const showAllButton = `<button class="legend-item active" data-church="all">
+        <span class="legend-swatch" style="background: gray;"></span>
+        <span>Show All</span>
+      </button>`;
+      
+      const churchButtons = entries.map(([name, color]) => `
+        <button class="legend-item" data-church="${name}">
           <span class="legend-swatch" style="background:${color}"></span>
           <span>${name}</span>
-        </div>
+        </button>
       `).join("");
+      
+      legendEl.innerHTML = showAllButton + churchButtons;
+      
+      // Add click handlers
+      legendEl.querySelectorAll('.legend-item').forEach(button => {
+        button.addEventListener('click', (e) => {
+          e.preventDefault();
+          const selectedChurch = button.getAttribute('data-church');
+          setActiveFilter(selectedChurch);
+        });
+      });
     }
 
     renderLegend();
@@ -241,6 +287,22 @@
     }
 
     let latestPoints = [];
+    let activeFilter = 'all'; // Track which church is currently filtered
+
+    function setActiveFilter(church) {
+      activeFilter = church;
+      
+      // Update button states
+      legendEl.querySelectorAll('.legend-item').forEach(button => {
+        button.classList.remove('active');
+        if (button.getAttribute('data-church') === church) {
+          button.classList.add('active');
+        }
+      });
+      
+      // Re-render with filter
+      renderLatest();
+    }
 
     function showTip(church, region, x, y) {
       tipEl.innerHTML = church + "<br>" + region;
@@ -265,7 +327,10 @@
       const scaleX = rect.width / 800;
       const scaleY = rect.height / 800;
   
-      points.forEach(p => {
+      // Filter points based on active filter
+      const filteredPoints = activeFilter === 'all' ? points : points.filter(p => p.church === activeFilter);
+  
+      filteredPoints.forEach(p => {
         const dot = document.createElement("div");
         dot.className = "dot";
         dot.style.left = (p.x * scaleX) + "px";
