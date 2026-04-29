@@ -207,19 +207,15 @@
       container: "map",
       style: 'mapbox://styles/larrylin/cmokbouga002601s71epn9phy', 
       center: [-76.62, 39.3], // lng, lat
-      zoom: 10.5,
-      minZoom: 10.5,
-      maxZoom: 10.5,
+      zoom: 10,
+      minZoom: 9,
+      maxZoom: 11,
       dragRotate: false,
       pitchWithRotate: false,
       attributionControl: true
     });
-
-    map.scrollZoom.disable();
-    map.doubleClickZoom.disable();
-    map.touchZoomRotate.disable();
-    map.boxZoom.disable();
-    map.keyboard.disable();
+    
+    map.addControl(new mapboxgl.NavigationControl({showCompass: false}), 'bottom-right');
 
     map.setMaxBounds([
       [-76.91, 39.09], // southwest [lng, lat]
