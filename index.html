@@ -368,11 +368,6 @@
         churchName.textContent = p.church;
         popupContent.appendChild(churchName);
 
-        if (p.region) {
-          popupContent.appendChild(document.createElement("br"));
-          popupContent.appendChild(document.createTextNode(p.region));
-        }
-
         const popup = new mapboxgl.Popup({
           closeButton: false,
           closeOnClick: false,
