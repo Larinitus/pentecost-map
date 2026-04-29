@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.21.0/mapbox-gl.css" rel="stylesheet">
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.21.0/mapbox-gl.js"></script>
   <title>Attendees Map</title>
   <style>
     
@@ -21,34 +23,24 @@
       gap: 24px;
       justify-content: center;
       grid-template-columns: 1fr;
-      width: 800px; height: 800px; position: relative; margin: auto; 
+      width: min(800px, 100%);
+      height: min(850px, calc(100vh - 40px));
+      position: relative;
+      margin: auto;
     }
-    #base { width: 800px; height: 800px; display: block; position: relative; z-index: 1; user-select: none; -webkit-user-drag: none; }
-    #dots { position: absolute; inset: 0; z-index: 2; }
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+    .marker {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      opacity: 0.85;
+    }
     #loading { position: absolute; inset: 0; z-index: 4; display: flex; align-items: center; justify-content: center;
       background:rgba(255,255,255,0.6); font-weight:600; }
 
-    .dot {
-      position: absolute;
-      width: 10px; height: 10px;
-      border-radius: 50%;
-      transform: translate(-50%, -50%);
-      opacity: 0.85;
-    }
-    .tooltip {
-      position: absolute;
-      z-index: 3;
-      padding: 6px 8px;
-      background: rgba(0,0,0,0.85);
-      color: #fff;
-      border-radius: 6px;
-      font-size: 12px;
-      pointer-events: none;
-      transform: translate(10px, -10px);
-      display: none;
-      white-space: nowrap;
-    }
-    
     #refreshDotsContainer {
       position: absolute;
       top: 14px;
@@ -154,18 +146,15 @@
       font-weight: 600;
     }
     .legend-swatch {
-      width: 10px;
-      height: 10px;
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
-      flex: 0 0 10px;
+      flex: 0 0 8px;
       opacity: 0.85;
     }
 
-
     @media (max-width: 850px) {
-      #wrap { width: 100%; height: auto; }
-      #base { width: 100%; height: auto; }
-      #dots { position: absolute; inset: 0; }
+      #layout { height: calc(100vh - 40px); }
     }
     @media (max-width: 480px) {
       #refreshDotsContainer {
@@ -190,15 +179,12 @@
         max-height: 240px;
       }
     }
-    
   
   </style>
 </head>
 <body>
   <div id="layout">
-        <img id="base" src="baltimore-map-800-w-regions-grayscale.png" alt="Map" />
-        <div id="dots"></div>
-        <div id="tip" class="tooltip"></div>
+        <div id="map"></div>
         <div id="loading">Loading dots…</div>
         <div id="legendPanel">
           <button id="legendToggle" type="button" aria-expanded="false" aria-controls="legendContent">
@@ -215,7 +201,32 @@
 
   <script>
 
-    // set church colors here
+    mapboxgl.accessToken = 'pk.eyJ1IjoibGFycnlsaW4iLCJhIjoiY21vazV1YzNkMDBhZDJwcTRldW91MmlmMSJ9.Ci1giJgze5RhDtknQ_Ii2g';
+
+    const map = new mapboxgl.Map({
+      container: "map",
+      style: 'mapbox://styles/larrylin/cmokbouga002601s71epn9phy', 
+      center: [-76.6122, 39.2904], // lng, lat
+      zoom: 10,
+      minZoom: 10,
+      maxZoom: 10,
+      dragRotate: false,
+      pitchWithRotate: false,
+      attributionControl: true
+    });
+
+    map.scrollZoom.disable();
+    map.doubleClickZoom.disable();
+    map.touchZoomRotate.disable();
+    map.boxZoom.disable();
+    map.keyboard.disable();
+
+    map.setMaxBounds([
+      [-76.91, 39.09], // southwest [lng, lat]
+      [-76.31, 39.49]  // northeast [lng, lat]
+    ]);
+
+    // Set church colors here.
     const churchColors = {
       "Central Presbyterian Church": "#FFC107",     // golden yellow
       "Church of the Resurrection": "#E91E63", // magenta
@@ -234,11 +245,9 @@
       "Victory House Worship Center": "#32D74B" // green
     };
 
-    const dotsEl = document.getElementById("dots");
-    const tipEl = document.getElementById("tip");
-    const baseImg = document.getElementById("base");
     const loadingEl = document.getElementById("loading");
     const legendEl = document.getElementById("legend");
+    let activeMarkers = [];
     document.getElementById("refreshDots").addEventListener("click", loadPoints);
 
     const legendToggle = document.getElementById("legendToggle");
@@ -273,7 +282,6 @@
       
       legendEl.innerHTML = showAllButton + churchButtons;
       
-      // Add click handlers
       legendEl.querySelectorAll('.legend-item').forEach(button => {
         button.addEventListener('click', (e) => {
           e.preventDefault();
@@ -291,79 +299,76 @@
     }
 
     let latestPoints = [];
-    let activeFilter = 'all'; // Track which church is currently filtered
+    let activeFilter = 'all';
 
     function setActiveFilter(church) {
       activeFilter = church;
       
-      // Update button states
       legendEl.querySelectorAll('.legend-item').forEach(button => {
         button.classList.remove('active');
         if (button.getAttribute('data-church') === church) {
           button.classList.add('active');
         }
       });
-      
-      // Re-render with filter
       renderLatest();
     }
 
-    function showTip(church, region, x, y) {
-      tipEl.innerHTML = church + "<br>" + region;
-      tipEl.style.left = x + "px";
-      tipEl.style.top = y + "px";
-      tipEl.style.display = "block";
+    function clearDots() {
+      activeMarkers.forEach(marker => marker.remove());
+      activeMarkers = [];
     }
-    function hideTip() { tipEl.style.display = "none"; }
-  
-    function clearDots() { dotsEl.innerHTML = ""; }
   
     function render(points) {
       clearDots();
   
-      const rect = baseImg.getBoundingClientRect();
-      if (!rect.width || !rect.height) {
-        // Image not laid out yet; try again shortly.
-        setTimeout(() => render(points), 50);
-        return;
-      }
-  
-      const scaleX = rect.width / 800;
-      const scaleY = rect.height / 800;
-  
-      // Filter points based on active filter
       const filteredPoints = activeFilter === 'all' ? points : points.filter(p => p.church === activeFilter);
-  
+
       filteredPoints.forEach(p => {
-        const dot = document.createElement("div");
-        dot.className = "dot";
-        dot.style.left = (p.x * scaleX) + "px";
-        dot.style.top  = (p.y * scaleY) + "px";
-        dot.style.background = churchColors[p.church] || "#666";
-  
-        dot.addEventListener("mousemove", (ev) => {
-          const dotsRect = dotsEl.getBoundingClientRect();
-          showTip(p.church, p.region, ev.clientX - dotsRect.left, ev.clientY - dotsRect.top);
+        const el = document.createElement("div");
+        el.className = "marker";
+        el.style.backgroundColor = churchColors[p.church] || "#666";
+        const popupContent = document.createElement("div");
+        const churchName = document.createElement("strong");
+        churchName.textContent = p.church;
+        popupContent.appendChild(churchName);
+
+        if (p.region) {
+          popupContent.appendChild(document.createElement("br"));
+          popupContent.appendChild(document.createTextNode(p.region));
+        }
+
+        const popup = new mapboxgl.Popup({
+          closeButton: false,
+          closeOnClick: false,
+          offset: 12
+        }).setDOMContent(popupContent);
+
+        const marker = new mapboxgl.Marker(el)
+          .setLngLat([p.lng, p.lat])
+          .addTo(map);
+
+        el.addEventListener("mouseenter", () => {
+          popup.setLngLat([p.lng, p.lat]).addTo(map);
         });
-        dot.addEventListener("mouseleave", hideTip);
-  
-        dotsEl.appendChild(dot);
+
+        el.addEventListener("mouseleave", () => {
+          popup.remove();
+        });
+
+        activeMarkers.push(marker);
       });
     }
   
     function renderLatest() {
       render(latestPoints);
     }
-      
-    window.addEventListener("resize", () => renderLatest());
   
-    // Load points via Cloudflare Worker
-    const POINTS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR8vB-6T8KKEibKoEJuLbibJCxuIFBZXdZO63zSrCqT_0-aXJK06uvLhl7IlRHW39La6Tg7IVQBFVus/pub?gid=596352563&single=true&output=csv";
+    const POINTS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR8vB-6T8KKEibKoEJuLbibJCxuIFBZXdZO63zSrCqT_0-aXJK06uvLhl7IlRHW39La6Tg7IVQBFVus/pub?gid=821555786&single=true&output=csv";
     
     function loadPoints() {
       setLoading(true);
     
-      const url = POINTS_URL + (POINTS_URL.includes("?") ? "&" : "?") + "_=" + Date.now();
+      const url = POINTS_URL + "&_=" + Date.now();
     
       fetch(url, { cache: "no-store" })
         .then(r => r.text())
@@ -373,13 +378,17 @@
     
           const points = rows
             .map(row => row.split(","))
-            .filter(([church, region, x, y]) => church && region && x && y && !isNaN(x) && !isNaN(y))
-            .map(([church, region, x, y]) => ({ church, region, x: Number(x), y: Number(y) }));
-    
+            .filter(([church, region, lat, lng]) => church && lat && lng && !isNaN(lat) && !isNaN(lng))
+            .map(([church, region, lat, lng]) => ({
+              church,
+              region,
+              lat: Number(lat),
+              lng: Number(lng)
+            }));
+          
           latestPoints = points;
     
-          if (baseImg.complete) renderLatest();
-          else baseImg.addEventListener("load", renderLatest, { once: true });
+          renderLatest();
     
           setLoading(false);
         })
@@ -389,7 +398,7 @@
         });
     }
     
-    loadPoints();
+    map.on("load", loadPoints);
 
   </script>
 </body>
