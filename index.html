@@ -215,7 +215,32 @@
 
   <script>
 
-    // set church colors here
+    mapboxgl.accessToken = 'pk.eyJ1IjoibGFycnlsaW4iLCJhIjoiY21vazV1YzNkMDBhZDJwcTRldW91MmlmMSJ9.Ci1giJgze5RhDtknQ_Ii2g';
+
+    const map = new mapboxgl.Map({
+      container: "map",
+      style: 'mapbox://styles/larrylin/cmokbouga002601s71epn9phy', 
+      center: [-76.62, 39.3], // lng, lat
+      zoom: 10.5,
+      minZoom: 10.5,
+      maxZoom: 10.5,
+      dragRotate: false,
+      pitchWithRotate: false,
+      attributionControl: true
+    });
+
+    map.scrollZoom.disable();
+    map.doubleClickZoom.disable();
+    map.touchZoomRotate.disable();
+    map.boxZoom.disable();
+    map.keyboard.disable();
+
+    map.setMaxBounds([
+      [-76.91, 39.09], // southwest [lng, lat]
+      [-76.31, 39.49]  // northeast [lng, lat]
+    ]);
+
+    // Set church colors here.
     const churchColors = {
       "Central Presbyterian Church": "#FFC107",     // golden yellow
       "Church of the Resurrection": "#E91E63", // magenta
@@ -335,15 +360,31 @@
       const filteredPoints = activeFilter === 'all' ? points : points.filter(p => p.church === activeFilter);
   
       filteredPoints.forEach(p => {
-        const dot = document.createElement("div");
-        dot.className = "dot";
-        dot.style.left = (p.x * scaleX) + "px";
-        dot.style.top  = (p.y * scaleY) + "px";
-        dot.style.background = churchColors[p.church] || "#666";
-  
-        dot.addEventListener("mousemove", (ev) => {
-          const dotsRect = dotsEl.getBoundingClientRect();
-          showTip(p.church, p.region, ev.clientX - dotsRect.left, ev.clientY - dotsRect.top);
+        const el = document.createElement("div");
+        el.className = "marker";
+        el.style.backgroundColor = churchColors[p.church] || "#666";
+        const popupContent = document.createElement("div");
+        const churchName = document.createElement("strong");
+        churchName.textContent = p.church;
+        popupContent.appendChild(churchName);
+
+        if (p.region) {
+          popupContent.appendChild(document.createElement("br"));
+          popupContent.appendChild(document.createTextNode(p.region));
+        }
+
+        const popup = new mapboxgl.Popup({
+          closeButton: false,
+          closeOnClick: false,
+          offset: 12
+        }).setDOMContent(popupContent);
+
+        const marker = new mapboxgl.Marker(el)
+          .setLngLat([p.lng, p.lat])
+          .addTo(map);
+
+        el.addEventListener("mouseenter", () => {
+          popup.setLngLat([p.lng, p.lat]).addTo(map);
         });
         dot.addEventListener("mouseleave", hideTip);
   
@@ -373,9 +414,13 @@
     
           const points = rows
             .map(row => row.split(","))
-            .filter(([church, region, x, y]) => church && region && x && y && !isNaN(x) && !isNaN(y))
-            .map(([church, region, x, y]) => ({ church, region, x: Number(x), y: Number(y) }));
-    
+            .filter(([church, lat, lng]) => church && lat && lng && !isNaN(lat) && !isNaN(lng))
+            .map(([church, lat, lng]) => ({
+              church,
+              lat: Number(lat),
+              lng: Number(lng)
+            }));
+          
           latestPoints = points;
     
           if (baseImg.complete) renderLatest();
