@@ -206,10 +206,10 @@
     const map = new mapboxgl.Map({
       container: "map",
       style: 'mapbox://styles/larrylin/cmokbouga002601s71epn9phy', 
-      center: [-76.6122, 39.2904], // lng, lat
-      zoom: 10,
-      minZoom: 10,
-      maxZoom: 10,
+      center: [-76.62, 39.3], // lng, lat
+      zoom: 10.5,
+      minZoom: 10.5,
+      maxZoom: 10.5,
       dragRotate: false,
       pitchWithRotate: false,
       attributionControl: true
@@ -332,11 +332,6 @@
         churchName.textContent = p.church;
         popupContent.appendChild(churchName);
 
-        if (p.region) {
-          popupContent.appendChild(document.createElement("br"));
-          popupContent.appendChild(document.createTextNode(p.region));
-        }
-
         const popup = new mapboxgl.Popup({
           closeButton: false,
           closeOnClick: false,
@@ -378,10 +373,9 @@
     
           const points = rows
             .map(row => row.split(","))
-            .filter(([church, region, lat, lng]) => church && lat && lng && !isNaN(lat) && !isNaN(lng))
-            .map(([church, region, lat, lng]) => ({
+            .filter(([church, lat, lng]) => church && lat && lng && !isNaN(lat) && !isNaN(lng))
+            .map(([church, lat, lng]) => ({
               church,
-              region,
               lat: Number(lat),
               lng: Number(lng)
             }));
